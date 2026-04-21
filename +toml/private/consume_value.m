@@ -41,13 +41,20 @@ function [val, str] = consume_value(str)
     str = str(2:end);
     val = containers.Map();
     first = true;
-    while ~isempty(str)
-      str = trimstart(str);
+    while true
+      str = consume_comment(str);
+      if isempty(str)
+        error('toml:MissingToken', 'Expected `}` to close inline table.');
+      end
       if startsWith(str, '}')
         break
       end
       if ~first
         str = expect(str, ',');
+        str = consume_comment(str);
+        if startsWith(str, '}')
+          break
+        end
       end
       [key_seq, str] = consume_key(str, '=');
       [item, str] = consume_value(str);
@@ -224,18 +231,22 @@ function [val, str] = consume_time(str, hour)
     error('toml:InvalidMinute', 'Invalid minute in time object.');
   end
 
-  str = expect(str, ':');
-  [second, str] = consume_integer(str, 10);
-  
-  if numel(second) ~= 2 || second(1) > '6' || (second(1) == '6' && second(2) > '0')
-    error('toml:InvalidSecond', 'Invalid second in time object.');
-  end
+  val = [hour ':' minute];
 
-  val = [hour ':' minute ':' second];
-  
-  if startsWith(str, '.')
-    [sub_second, str] = consume_integer(str(2:end), 10);
-    val = [val '.' sub_second(1:min(6, numel(sub_second)))];
+  if startsWith(str, ':')
+    str = str(2:end);
+    [second, str] = consume_integer(str, 10);
+
+    if numel(second) ~= 2 || second(1) > '6' || (second(1) == '6' && second(2) > '0')
+      error('toml:InvalidSecond', 'Invalid second in time object.');
+    end
+
+    val = [val ':' second];
+
+    if startsWith(str, '.')
+      [sub_second, str] = consume_integer(str(2:end), 10);
+      val = [val '.' sub_second(1:min(6, numel(sub_second)))];
+    end
   end
 end
 
