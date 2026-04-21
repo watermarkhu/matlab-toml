@@ -602,6 +602,7 @@ classdef TestTomlDecode < matlab.unittest.TestCase
                    }} ...
         );
 
+    % Printable ASCII characters excluding valid escape sequences: b, t, n, f, r, \, ", u, U, e, x
     invalidEscape = num2cell(setdiff(char(33:126), 'btnfr"\uUex'));
   end
 
