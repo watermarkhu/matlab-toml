@@ -3,9 +3,9 @@
 % Started once by ci.bash and kept alive between tests.
 % Communicates via files whose paths are passed through environment variables.
 
-addpath(getenv('TOML_WORKDIR'));
+addpath(getenv('GITHUB_WORKSPACE'));
 if exist('OCTAVE_VERSION', 'builtin') > 0
-    addpath(fullfile(getenv('TOML_WORKDIR'), '+toml', 'private'));
+    addpath(fullfile(getenv('GITHUB_WORKSPACE'), '+toml', 'private'));
 end
 
 in_file    = getenv('TOML_IN');
