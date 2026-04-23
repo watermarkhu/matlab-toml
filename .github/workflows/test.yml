@@ -13,6 +13,9 @@ jobs:
         with:
           cache: true
       - uses: matlab-actions/run-tests@v3
+        with:
+          source-folder: .
+          select-by-folder: test
       - name: Warm up MATLAB TOML server
         run: echo 'key = "value"' | ./ci.bash "${{ env.MATLAB_CMD }}"
       - uses: watermarkhu/toml-test-action@main
