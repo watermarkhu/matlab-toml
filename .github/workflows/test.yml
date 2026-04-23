@@ -8,6 +8,8 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - uses: matlab-actions/setup-matlab@v3
+        with:
+          cache: true
       - uses: matlab-actions/run-tests@v3
       - uses: watermarkhu/toml-test-action@main
         with:
