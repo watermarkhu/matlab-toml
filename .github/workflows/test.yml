@@ -19,8 +19,8 @@ jobs:
       - name: Warm up MATLAB TOML server
         run: echo 'key = "value"' | ./test/ci.bash "${{ env.MATLAB_CMD }}"
       - uses: actions/setup-go@v6
-      - name: Install toml-test v2.1.0
-        run: go install github.com/toml-lang/toml-test/v2/cmd/toml-test@v2.1.0
+      - name: Install toml-test
+        run: go install github.com/toml-lang/toml-test/v2/cmd/toml-test
       - name: Run toml-test
         run: >
           toml-test test
