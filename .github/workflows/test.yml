@@ -17,7 +17,7 @@ jobs:
           source-folder: .
           select-by-folder: test
       - name: Warm up MATLAB TOML server
-        run: echo 'key = "value"' | ./ci.bash "${{ env.MATLAB_CMD }}"
+        run: echo 'key = "value"' | ./test/ci.bash "${{ env.MATLAB_CMD }}"
       - uses: watermarkhu/toml-test-action@main
         with:
           command: ./test/ci.bash ${{ env.MATLAB_CMD }}
