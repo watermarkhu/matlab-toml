@@ -41,7 +41,11 @@ function str = repr(obj, parent)
     % numbers
     case { 'double', 'int64' }
       if numel(obj) == 1
-        str = lower(num2str(obj));
+        if isa(obj, 'double')
+          str = format_float(obj);
+        else
+          str = lower(num2str(obj));
+        end
       elseif ndims(obj) == 2 && size(obj, 1) == 1
         cel = arrayfun(@repr, obj, 'uniformoutput', false);
         str = ['[', strjoin(cel, ', '), ']'];

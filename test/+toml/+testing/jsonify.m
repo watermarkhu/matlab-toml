@@ -53,7 +53,7 @@ function str = jsonify(obj)
 		elseif isnan(obj)
 			str = '{"type":"float","value":"nan"}';
 		else
-			str = sprintf('{"type":"float","value":"%0.15f"}', obj);
+			str = sprintf('{"type":"float","value":"%s"}', toml.private.format_float(obj));
 		end
 
 	else
