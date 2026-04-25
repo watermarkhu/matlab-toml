@@ -52,27 +52,25 @@ function [content, str] = terminate_string(str, is_multiline)
           case 'e'
             pieces{end+1} = char(27);
           case 'x'
-            [code_point, str] = get_hex_digits(str, 2);
-            pieces{end+1} = char(hex2dec(code_point));
+            error('toml:InvalidEscapeSequence', ...
+              'The \x escape sequence is not valid in TOML.');
           case { 'u', 'U' }
             num_digits = 4;
             if c == 'U'
               num_digits = 8;
             end
-            [code_point, str] = get_hex_digits(str, num_digits);
-            code_point = uint32(hex2dec(code_point));
-            % still run this even in matlab, to validate code point
-            utf8_validated = utf8ify(code_point);
-            if is_octave()
-              pieces{end+1} = utf8_validated;
-            elseif code_point <= uint32(0xFFFF)
-              pieces{end+1} = char(code_point);
-            else
-              pieces{end+1} = char([bitshift(code_point, -16), bitand(uint32(0xFFFF), code_point)]);
+            [code_point_str, str] = get_hex_digits(str, num_digits);
+            code_point = uint32(hex2dec(code_point_str));
+            % Validate code point - reject surrogates and out-of-range values
+            if (code_point >= uint32(0xD800) && code_point <= uint32(0xDFFF)) || ...
+               code_point > uint32(0x10FFFF)
+              error('toml:InvalidCodePoint', ...
+                ['Invalid Unicode code point: U+' upper(code_point_str)]);
             end
+            pieces{end+1} = char(code_point);
           otherwise
             error('toml:ReservedEscapeSequence', ...
-              ['Encountered reserved escape sequence `\\', c, '` in string.']);
+              ['Encountered reserved escape sequence `\', c, '` in string.']);
         end
       end
     elseif is_multiline && startsWith(str, '"""')
@@ -92,10 +90,15 @@ function [content, str] = terminate_string(str, is_multiline)
     elseif ~is_multiline && startsWith(str, newline)
       error('toml:LineBreakInBasicString', ...
         'Encountered a line break in a single-line string.');
-    elseif str(1) <= 8 || (str(1) >= 11 && str(1) <= 31) || str(1) == 127
-      error('toml:ControlCharInBasicString', ...
-        sprintf('Encountered control character `%d` in a string.', str(1)));
     else
+      % Check for control characters using numeric codepoint value
+      char_code = double(str(1));
+      if (char_code >= 0 && char_code <= 8) || ...
+         (char_code >= 10 && char_code <= 31) || ...
+         char_code == 127
+        error('toml:ControlCharInBasicString', ...
+          sprintf('Encountered control character `%d` in a string.', char_code));
+      end
       pieces{end+1} = str(1);
       str = str(2:end);
     end

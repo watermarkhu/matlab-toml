@@ -44,9 +44,16 @@ function [content, rest] = terminate_string(str, is_multiline)
       % tab is okay
     elseif c == 10 && is_multiline
       % line feeds are ok in multiline strings
-    elseif c <= 31 || c == 127
-      error('toml:ControlCharInString', ...
-        sprintf('Encountered control character %d in string.', c));
+    else
+      % Check for control characters by explicit codepoint value
+      % This handles multibyte UTF-8 characters correctly
+      char_code = double(c);
+      if (char_code >= 0 && char_code <= 8) || ...
+         (char_code >= 10 && char_code <= 31) || ...
+         char_code == 127
+        error('toml:ControlCharInString', ...
+          sprintf('Encountered control character %d in string.', char_code));
+      end
     end
   end
 

@@ -12,9 +12,16 @@ function out = consume_comment(in)
           return
         elseif c == 9
           % tabs are okay
-        elseif c <= 31 || c == 127
-          error('toml:ControlCharInComment', ...
-            sprintf('Encountered control character %d in comment.', c));
+        else
+          % Check for control characters by explicit codepoint value
+          % This handles multibyte UTF-8 characters correctly
+          char_code = double(c);
+          if (char_code >= 0 && char_code <= 8) || ...
+             (char_code >= 10 && char_code <= 31) || ...
+             char_code == 127
+            error('toml:ControlCharInComment', ...
+              sprintf('Encountered control character %d in comment.', char_code));
+          end
         end
       end
 
