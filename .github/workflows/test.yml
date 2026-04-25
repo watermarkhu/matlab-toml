@@ -18,9 +18,13 @@ jobs:
           select-by-folder: test
       - name: Warm up MATLAB TOML server
         run: echo 'key = "value"' | ./test/ci.bash "${{ env.MATLAB_CMD }}"
-      - uses: watermarkhu/toml-test-action@main
-        with:
-          command: ./test/ci.bash ${{ env.MATLAB_CMD }}
-          skip: "invalid/encoding/bad-utf8-*"
-          parallel: 1
-          timeout: 10s
+      - uses: actions/setup-go@v6
+      - name: Install toml-test v2.1.0
+        run: go install github.com/toml-lang/toml-test/v2/cmd/toml-test@v2.1.0
+      - name: Run toml-test
+        run: >
+          toml-test test
+          -decoder="./test/ci.bash ${{ env.MATLAB_CMD }}"
+          -skip="invalid/encoding/bad-utf8-*"
+          -parallel=1
+          -timeout=10s
