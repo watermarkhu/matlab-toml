@@ -49,6 +49,11 @@ function [content, str] = terminate_string(str, is_multiline)
             pieces{end+1} = c;
           case { 'b', 't', 'r', 'f', 'n' }
             pieces{end+1} = sprintf(['\' c]);
+          case 'e'
+            pieces{end+1} = char(27);
+          case 'x'
+            [code_point, str] = get_hex_digits(str, 2);
+            pieces{end+1} = char(hex2dec(code_point));
           case { 'u', 'U' }
             num_digits = 4;
             if c == 'U'
@@ -95,7 +100,7 @@ function [content, str] = terminate_string(str, is_multiline)
       str = str(2:end);
     end
   end
-  
+
   content = strjoin(pieces, '');
 end
 

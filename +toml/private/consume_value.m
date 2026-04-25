@@ -1,6 +1,6 @@
 function [val, str] = consume_value(str)
   str = trimstart(str);
-  
+
   if isempty(str)
     error('toml:MissingValue', ...
       'Expected a value, found end of input.');
@@ -28,7 +28,7 @@ function [val, str] = consume_value(str)
     end
 
     str = expect(str, ']');
-    
+
     if numel(val) > 1 && ...
       (all(cellfun(@(e) isa(e, 'int64'), val)) || ...
         all(cellfun(@(e) isa(e, 'uint64'), val)) || ...
@@ -36,18 +36,25 @@ function [val, str] = consume_value(str)
         all(cellfun(@isscalar, val))
       val = cell2mat(val);
     end
-    
+
   elseif startsWith(str, '{')
     str = str(2:end);
     val = containers.Map();
     first = true;
-    while ~isempty(str)
-      str = trimstart(str);
+    while true
+      str = consume_comment(str);
+      if isempty(str)
+        error('toml:MissingToken', 'Expected `}` to close inline table.');
+      end
       if startsWith(str, '}')
         break
       end
       if ~first
         str = expect(str, ',');
+        str = consume_comment(str);
+        if startsWith(str, '}')
+          break
+        end
       end
       [key_seq, str] = consume_key(str, '=');
       [item, str] = consume_value(str);
@@ -62,7 +69,7 @@ function [val, str] = consume_value(str)
   elseif startsWith(str, 'false')
     val = false;
     str = str(6:end);
-    
+
   elseif startsWith(str, "'")
     [val, str] = consume_literal_string(str, true);
   elseif startsWith(str, '"')
@@ -72,14 +79,14 @@ function [val, str] = consume_value(str)
     [val, str] = consume_signed_value(str(2:end), 1);
   elseif startsWith(str, '-')
     [val, str] = consume_signed_value(str(2:end), -1);
-    
+
   elseif startsWith(str, "inf")
     val = Inf;
     str = str(4:end);
   elseif startsWith(str, "nan")
     val = NaN;
     str = str(4:end);
-    
+
   elseif startsWith(str, "0b")
     [digits, str] = consume_integer(str(3:end), 2);
     val = uint64(bin2dec(strrep(digits, '_', '')));
@@ -89,32 +96,32 @@ function [val, str] = consume_value(str)
   elseif startsWith(str, "0x")
     [digits, str] = consume_integer(str(3:end), 16);
     val = uint64(hex2dec(strrep(digits, '_', '')));
-    
+
   elseif isstrprop(str(1), 'digit')
     [digits, str] = consume_integer(str, 10);
-    
+
     % date
     if numel(digits) == 4 && startsWith(str, '-')
       [month, str] = consume_integer(str(2:end), 10);
-  
+
       if numel(month) ~= 2 || month(1) > '1' || (month(1) == '1' && month(2) > '2') || all(month == '00')
         error('toml:InvalidMonth', 'Invalid month in date object.');
       end
 
       str = expect(str, '-');
       [day, str] = consume_integer(str, 10);
-  
+
       if numel(day) ~= 2 || day(1) > '3' || (day(1) == '3' && day(2) > '1') || all(day == '00')
         error('toml:InvalidDay', 'Invalid day in date object.');
       end
 
       val = [digits '-' month '-' day];
-      
+
       if startsWith(str, 'T') || startsWith(str, 't') || ...
          (strncmp(str, ' ', 1) && numel(str) > 1 && isstrprop(str(2), 'digit'))
         [time_str, str] = consume_time(str(2:end));
         val = [val 'T' time_str];
-        
+
         if startsWith(str, 'Z') || startsWith(str, 'z')
           val = [val 'Z'];
           str = str(2:end);
@@ -193,7 +200,7 @@ function [digits, str] = consume_integer(str, base)
       break
     end
   end
-  
+
   if startsWith(digits, '_')
     error('toml:LeadingUnderscore', ...
       'Numbers cannot have a leading underscore.');
@@ -204,7 +211,7 @@ function [digits, str] = consume_integer(str, base)
     error('toml:NoDigits', ...
       'Expected at least one digit.');
   end
-  
+
   str = str(numel(digits)+1:end);
 end
 
@@ -212,7 +219,7 @@ function [val, str] = consume_time(str, hour)
   if nargin < 2
     [hour, str] = consume_integer(str, 10);
   end
-  
+
   if numel(hour) ~= 2 || hour(1) > '2' || (hour(1) == '2' && hour(2) > '3')
     error('toml:InvalidHour', 'Invalid hour in time object.');
   end
@@ -224,18 +231,22 @@ function [val, str] = consume_time(str, hour)
     error('toml:InvalidMinute', 'Invalid minute in time object.');
   end
 
-  str = expect(str, ':');
-  [second, str] = consume_integer(str, 10);
-  
-  if numel(second) ~= 2 || second(1) > '6' || (second(1) == '6' && second(2) > '0')
-    error('toml:InvalidSecond', 'Invalid second in time object.');
-  end
+  val = [hour ':' minute];
 
-  val = [hour ':' minute ':' second];
-  
-  if startsWith(str, '.')
-    [sub_second, str] = consume_integer(str(2:end), 10);
-    val = [val '.' sub_second(1:min(6, numel(sub_second)))];
+  if startsWith(str, ':')
+    str = str(2:end);
+    [second, str] = consume_integer(str, 10);
+
+    if numel(second) ~= 2 || second(1) > '6' || (second(1) == '6' && second(2) > '0')
+      error('toml:InvalidSecond', 'Invalid second in time object.');
+    end
+
+    val = [val ':' second];
+
+    if startsWith(str, '.')
+      [sub_second, str] = consume_integer(str(2:end), 10);
+      val = [val '.' sub_second(1:min(6, numel(sub_second)))];
+    end
   end
 end
 
