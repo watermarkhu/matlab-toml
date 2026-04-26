@@ -21,10 +21,6 @@ jobs:
         run: go install github.com/toml-lang/toml-test/v2/cmd/toml-test@v2.1.0
       - name: Warm up MATLAB TOML server
         run: echo 'key = "value"' | ./test/ci.bash "${{ env.MATLAB_CMD }}"
-      - name: Warm up MATLAB TOML server (UseDictionary)
-        env:
-          TOML_USE_DICT: "1"
-        run: echo 'key = "value"' | ./test/ci.bash "${{ env.MATLAB_CMD }}"
       - name: Run toml-test (containers.Map, skip unicode)
         run: >
           toml-test test
