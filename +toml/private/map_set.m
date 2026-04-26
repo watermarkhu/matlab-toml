@@ -6,7 +6,7 @@
 
 function m = map_set(m, key, val)
   if isa(m, 'dictionary')
-    m(key) = {val};
+    m = dict_set(m, key, val);
   else
     m(key) = val;
   end

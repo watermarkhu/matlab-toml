@@ -701,7 +701,7 @@ classdef TestTomlDecode < matlab.unittest.TestCase
       % Test that UseDictionary=true produces the same result as containers.Map
       % when the dictionary type is available (R2022b+).
       try
-        dictionary();
+        toml.testing.dict_make();
       catch
         testCase.assumeTrue(false, 'dictionary type not available on this MATLAB version.');
       end
@@ -743,10 +743,10 @@ classdef TestTomlDecode < matlab.unittest.TestCase
     function d = to_dictionary(val)
       % Recursively convert containers.Map -> dictionary for UseDictionary tests.
       if isa(val, 'containers.Map')
-        d = dictionary();
+        d = toml.testing.dict_make();
         k = keys(val);
         for ii = 1:numel(k)
-          d(k{ii}) = {toml.testing.TestTomlDecode.to_dictionary(val(k{ii}))};
+          d = toml.testing.dict_set_val(d, k{ii}, toml.testing.TestTomlDecode.to_dictionary(val(k{ii})));
         end
       elseif iscell(val)
         d = cellfun(@toml.testing.TestTomlDecode.to_dictionary, val, 'UniformOutput', false);

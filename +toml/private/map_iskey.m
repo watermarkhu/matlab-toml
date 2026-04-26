@@ -5,7 +5,7 @@
 
 function result = map_iskey(m, key)
   if isa(m, 'dictionary')
-    result = isKey(m, key);
+    result = dict_iskey(m, key);
   else
     result = isKey(m, key);
   end
