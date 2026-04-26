@@ -695,6 +695,21 @@ classdef TestTomlDecode < matlab.unittest.TestCase
 
   end
 
+  methods (Test, ParameterCombination = 'sequential')
+
+    function testValidInputsDict(testCase, validInput)
+      % Test that UseDictionary=true produces the same result as containers.Map
+      % when the dictionary type is available (R2022b+).
+      if ~(exist('dictionary', 'builtin') == 5 || exist('dictionary') == 5)
+        testCase.assumeTrue(false, 'dictionary type not available on this MATLAB version.');
+      end
+      result = toml.decode(validInput{1}, 'UseDictionary', true);
+      expected = TestTomlDecode.to_dictionary(validInput{2});
+      testCase.verifyEqual(result, expected, validInput{3});
+    end
+
+  end
+
   methods (Test)
 
     function testEscapedSupplementaryPlaneRoundtrip(testCase)
@@ -704,6 +719,38 @@ classdef TestTomlDecode < matlab.unittest.TestCase
       json = toml.testing.jsonify(result);
       testCase.verifyTrue(~isempty(strfind(json, '\uD802\uDEF1')), ...
         'jsonify should emit surrogate pair \\uD802\\uDEF1 for U+10AF1.');
+    end
+
+    function testIdeographicSpaceRejected(testCase)
+      % U+3000 IDEOGRAPHIC SPACE must not be treated as TOML whitespace.
+      % Only ASCII chars are valid as whitespace in TOML (U+0009, U+0020).
+      % This test is only meaningful on MATLAB (Octave chars are 8-bit).
+      if exist('OCTAVE_VERSION', 'builtin') > 0
+        testCase.assumeTrue(false, 'Skipped: Octave cannot represent U+3000.');
+      end
+      input_str = [char(0x3000), 'foo = "bar"'];
+      testCase.verifyError(@() toml.decode(input_str), ...
+        'toml:ForbiddenControlChar', ...
+        'Did not reject ideographic space (U+3000) as whitespace.');
+    end
+
+  end
+
+  methods (Static)
+
+    function d = to_dictionary(val)
+      % Recursively convert containers.Map -> dictionary for UseDictionary tests.
+      if isa(val, 'containers.Map')
+        d = dictionary(string.empty, {});
+        k = keys(val);
+        for ii = 1:numel(k)
+          d(string(k{ii})) = {TestTomlDecode.to_dictionary(val(k{ii}))};
+        end
+      elseif iscell(val)
+        d = cellfun(@TestTomlDecode.to_dictionary, val, 'UniformOutput', false);
+      else
+        d = val;
+      end
     end
 
   end

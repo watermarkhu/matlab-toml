@@ -4,44 +4,52 @@
 %   (a pointer sequence into `obj`) in `obj` equal to `val`, and returns
 %   a modified copy of `obj`.
 %
+%   SET_NESTED_FIELD(obj, indx, val, use_dict) uses dictionary instead of
+%   containers.Map when use_dict is true and intermediate maps need to be
+%   created.
+%
 %   See also GET_NESTED_FIELD
 
-function obj = set_nested_field(obj, indx, val)
+function obj = set_nested_field(obj, indx, val, use_dict)
+  if nargin < 4
+    use_dict = false;
+  end
+
   if length(indx) == 1
-    if isa(obj, 'containers.Map')
-      if isKey(obj, indx{:})
-        switch class(obj(indx{:}))
-          case 'containers.Map'
-            if ~isa(val, 'containers.Map')
+    if is_map(obj)
+      if map_iskey(obj, indx{1})
+        existing = map_get(obj, indx{1});
+        switch class(existing)
+          case {'containers.Map', 'dictionary'}
+            if ~is_map(val)
               error('toml:RedefinedTable', ...
                     'Tables cannot be redefined.')
-            elseif val.Count == 0
+            elseif existing.Count == 0
               return
             end
           case 'cell'
-            existing = obj(indx{:});
-            existing_is_aot = ~isempty(existing) && isa(existing{1}, 'containers.Map');
+            existing_is_aot = ~isempty(existing) && is_map(existing{1});
             if iscell(val) && ~existing_is_aot && ...
               ( ...
                 isempty(val) || ...
                 ( ...
                   isempty(val{1}) || ( ...
-                    isa(val{1}, 'containers.Map') && isempty(keys(val{1})) ...
+                    is_map(val{1}) && isempty(map_keys(val{1})) ...
                   ) || ( ...
                     iscell(val{1}) && (isempty(val{1}{1}) || ( ...
-                      isa(val{1}{1}, 'containers.Map') && isempty(keys(val{1}{1})) ...
+                      is_map(val{1}{1}) && isempty(map_keys(val{1}{1})) ...
                     )) ...
                   ) ...
                 ) ...
               )
               error('toml:RedefinedArray', ...
                     'Arrays cannot be redefined.')
-            elseif isa(val, 'containers.Map')
+            elseif is_map(val)
               error('toml:NameCollision', ...
                     'Table definitions cannot override existing arrays.')
             end
           otherwise
-            if isa(val, 'containers.Map')
+            if is_map(val)
               error('toml:RedefinedTable', ...
                     'Tables cannot be redefined.')
             end
@@ -53,15 +61,15 @@ function obj = set_nested_field(obj, indx, val)
       % annoying bug in octave requires assigning empty key twice
       if isempty(indx{1}) && is_octave()
         try
-          obj(indx{1}) = val;
+          obj = map_set(obj, indx{1}, val);
         catch
         end
       end
 
-      obj(indx{1}) = val;
+      obj = map_set(obj, indx{1}, val);
     elseif iscell(obj)
       if ischar(indx{1})
-        obj{end}(indx{1}) = val;
+        obj{end} = map_set(obj{end}, indx{1}, val);
       else
         obj{indx{1}} = val;
       end
@@ -71,12 +79,12 @@ function obj = set_nested_field(obj, indx, val)
       orig = get_nested_field(obj, indx(1));
     catch
       if ischar(indx{2})
-        orig = containers.Map();
+        orig = make_map(use_dict);
       else
         orig = {};
       end
     end
-    new = set_nested_field(orig, indx(2:end), val);
-    obj = set_nested_field(obj, indx(1), new);
+    new = set_nested_field(orig, indx(2:end), val, use_dict);
+    obj = set_nested_field(obj, indx(1), new, use_dict);
   end
 end

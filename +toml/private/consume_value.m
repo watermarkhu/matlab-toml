@@ -1,4 +1,7 @@
-function [val, str] = consume_value(str)
+function [val, str] = consume_value(str, use_dict)
+  if nargin < 2
+    use_dict = false;
+  end
   str = trimstart(str);
   
   if isempty(str)
@@ -21,7 +24,7 @@ function [val, str] = consume_value(str)
         error('toml:LeadingComma', ...
           'Comma found before in array without an element before it.');
       elseif ~startsWith(str, '#')
-        [item, str] = consume_value(str);
+        [item, str] = consume_value(str, use_dict);
         val{end+1} = item;
         expecting_comma = true;
       end
@@ -39,13 +42,13 @@ function [val, str] = consume_value(str)
     
   elseif startsWith(str, '{')
     str = str(2:end);
-    val = containers.Map();
+    val = make_map(use_dict);
     inline_immutable = {};
     while true
       str = trimstart(str, true);
       str = consume_comment(str);
       % consume_comment may leave us at another # or whitespace (consecutive comments)
-      if ~isempty(str) && (str(1) == '#' || isspace(str(1)))
+      if ~isempty(str) && (str(1) == '#' || str(1) == ' ' || str(1) == char(9) || str(1) == newline || str(1) == char(0xD))
         continue
       end
       if isempty(str)
@@ -55,7 +58,7 @@ function [val, str] = consume_value(str)
         break
       end
       [key_seq, str] = consume_key(str, '=');
-      [item, str] = consume_value(str);
+      [item, str] = consume_value(str, use_dict);
       % Check: reject if new key_seq exactly matches or is an extension of an existing key,
       % or if an existing key is an extension of the new key_seq.
       for ii = 1:numel(inline_immutable)
@@ -68,7 +71,7 @@ function [val, str] = consume_value(str)
       end
       % Mark this full key path as immutable (leaf only)
       inline_immutable{end+1} = key_seq;
-      val = set_nested_field(val, key_seq, item);
+      val = set_nested_field(val, key_seq, item, use_dict);
       while true
         str = trimstart(str, true);
         str = consume_comment(str);
@@ -77,7 +80,7 @@ function [val, str] = consume_value(str)
           break
         elseif startsWith(str, '}')
           break
-        elseif ~isempty(str) && (str(1) == '#' || isspace(str(1)))
+        elseif ~isempty(str) && (str(1) == '#' || str(1) == ' ' || str(1) == char(9) || str(1) == newline || str(1) == char(0xD))
           continue  % consecutive comments/whitespace
         elseif isempty(str)
           error('toml:EndOfInput', 'Did not expect input to end inside inline table.');

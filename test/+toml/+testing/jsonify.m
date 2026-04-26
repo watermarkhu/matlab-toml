@@ -1,7 +1,16 @@
 function str = jsonify(obj)
-	if isa(obj, 'containers.Map')
-		print_key_value = @(k) ['"' escape_str(k) '":' toml.testing.jsonify(obj(k))];
-		keys_and_values = cellfun(print_key_value, keys(obj), 'uniformoutput', false);
+	if isa(obj, 'containers.Map') || isa(obj, 'dictionary')
+		if isa(obj, 'dictionary')
+			key_list = cellstr(keys(obj));
+			get_val = @(k) obj(string(k)); % returns cell-wrapped value
+			unwrap  = @(v) v{1};
+		else
+			key_list = keys(obj);
+			get_val  = @(k) obj(k);
+			unwrap   = @(v) v;
+		end
+		print_key_value = @(k) ['"' escape_str(k) '":' toml.testing.jsonify(unwrap(get_val(k)))];
+		keys_and_values = cellfun(print_key_value, key_list, 'uniformoutput', false);
 		str = ['{', strjoin(keys_and_values, ','), '}'];
 
 	elseif isstruct(obj)

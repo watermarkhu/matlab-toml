@@ -2,15 +2,16 @@
 
 MATLAB=${1:-octave-cli --eval}
 
-# IPC files in /tmp – shared across ci.bash invocations
-export TOML_IN="/tmp/.matlab_toml.in"
-export TOML_OUT="/tmp/.matlab_toml.out"
-export TOML_READY="/tmp/.matlab_toml.ready"
-export TOML_DONE="/tmp/.matlab_toml.done"
-export TOML_ERROR="/tmp/.matlab_toml.error"
-export TOML_INIT="/tmp/.matlab_toml.init"
-SERVER_PID_FILE="/tmp/.matlab_toml_server.pid"
-SERVER_LOG="/tmp/.matlab_toml_server.log"
+# IPC files in /tmp – namespaced by TOML_USE_DICT so two modes can coexist
+SUFFIX="${TOML_USE_DICT:-0}"
+export TOML_IN="/tmp/.matlab_toml_${SUFFIX}.in"
+export TOML_OUT="/tmp/.matlab_toml_${SUFFIX}.out"
+export TOML_READY="/tmp/.matlab_toml_${SUFFIX}.ready"
+export TOML_DONE="/tmp/.matlab_toml_${SUFFIX}.done"
+export TOML_ERROR="/tmp/.matlab_toml_${SUFFIX}.error"
+export TOML_INIT="/tmp/.matlab_toml_${SUFFIX}.init"
+SERVER_PID_FILE="/tmp/.matlab_toml_server_${SUFFIX}.pid"
+SERVER_LOG="/tmp/.matlab_toml_server_${SUFFIX}.log"
 
 start_server() {
     rm -f "$TOML_INIT"

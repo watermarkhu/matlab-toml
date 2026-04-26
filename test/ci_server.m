@@ -27,7 +27,8 @@ while true
 
     ok = 1;
     try
-        decoded = toml.read(in_file);
+        use_dict = strcmp(getenv('TOML_USE_DICT'), '1');
+        decoded = toml.read(in_file, 'UseDictionary', use_dict);
         result  = toml.testing.jsonify(decoded);
         fid = fopen(out_file, 'wt');
         fprintf(fid, '%s\n', result);
