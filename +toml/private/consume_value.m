@@ -52,20 +52,18 @@ function [val, str] = consume_value(str)
       end
       [key_seq, str] = consume_key(str, '=');
       [item, str] = consume_value(str);
-      % Check immutability: reject if any prefix of key_seq is already immutable
-      for depth = 1:numel(key_seq)
-        partial = key_seq(1:depth);
-        for ii = 1:numel(inline_immutable)
-          if isequal(inline_immutable{ii}, partial)
-            error('toml:InlineTableImmutable', ...
-              'Inline tables are immutable; key already defined.');
-          end
+      % Check: reject if new key_seq exactly matches or is an extension of an existing key,
+      % or if an existing key is an extension of the new key_seq.
+      for ii = 1:numel(inline_immutable)
+        existing = inline_immutable{ii};
+        n = min(numel(existing), numel(key_seq));
+        if isequal(existing(1:n), key_seq(1:n))
+          error('toml:InlineTableImmutable', ...
+            'Inline tables are immutable; key already defined.');
         end
       end
-      % Mark all prefixes of this key_seq as immutable
-      for depth = 1:numel(key_seq)
-        inline_immutable{end+1} = key_seq(1:depth);
-      end
+      % Mark this full key path as immutable (leaf only)
+      inline_immutable{end+1} = key_seq;
       val = set_nested_field(val, key_seq, item);
       first = false;
     end

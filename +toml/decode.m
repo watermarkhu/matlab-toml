@@ -44,7 +44,7 @@ function obj_out = decode(toml_str)
       [location_stack, toml_str] = consume_key(toml_str, ']');
       location_stack = adjust_key_stack(obj_out, location_stack);
 
-      check_stack_for_conflict(immutable_locations, location_stack);
+      check_stack_for_conflict(immutable_locations, location_stack, 1);
       check_stack_for_conflict(implicit_table_locations, location_stack);
       check_stack_for_conflict(array_locations, location_stack);
       check_stack_for_conflict(table_locations, location_stack);
@@ -59,6 +59,7 @@ function obj_out = decode(toml_str)
       this_location = [location_stack key_seq];
 
       check_stack_for_conflict(immutable_locations, this_location, 1);
+      check_stack_for_conflict(implicit_table_locations, this_location);
       check_stack_for_conflict(array_locations, this_location, numel(location_stack) + 1);
       check_stack_for_conflict(table_locations, this_location, numel(location_stack) + 1);
       % Mark intermediate dotted-key paths as implicit tables (extensible by sub-tables)

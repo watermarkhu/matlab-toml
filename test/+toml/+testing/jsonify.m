@@ -57,7 +57,7 @@ function str = jsonify(obj)
 		elseif isinf(obj) && obj < 0
 			str = '{"type":"float","value":"-inf"}';
 		else
-			str = sprintf('{"type":"float","value":"%g"}', obj);
+			str = sprintf('{"type":"float","value":"%.16g"}', obj);
 		end
 
 	else
