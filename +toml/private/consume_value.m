@@ -40,6 +40,7 @@ function [val, str] = consume_value(str)
   elseif startsWith(str, '{')
     str = str(2:end);
     val = containers.Map();
+    inline_immutable = {};
     first = true;
     while ~isempty(str)
       str = trimstart(str);
@@ -51,6 +52,20 @@ function [val, str] = consume_value(str)
       end
       [key_seq, str] = consume_key(str, '=');
       [item, str] = consume_value(str);
+      % Check immutability: reject if any prefix of key_seq is already immutable
+      for depth = 1:numel(key_seq)
+        partial = key_seq(1:depth);
+        for ii = 1:numel(inline_immutable)
+          if isequal(inline_immutable{ii}, partial)
+            error('toml:InlineTableImmutable', ...
+              'Inline tables are immutable; key already defined.');
+          end
+        end
+      end
+      % Mark all prefixes of this key_seq as immutable
+      for depth = 1:numel(key_seq)
+        inline_immutable{end+1} = key_seq(1:depth);
+      end
       val = set_nested_field(val, key_seq, item);
       first = false;
     end
