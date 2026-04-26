@@ -110,6 +110,18 @@ function [val, str] = consume_value(str)
 
       val = [digits '-' month '-' day];
       
+      % Validate day against month (including leap year for February)
+      year_n  = str2double(digits);
+      month_n = str2double(month);
+      day_n   = str2double(day);
+      days_in_month = [31 28 31 30 31 30 31 31 30 31 30 31];
+      if mod(year_n, 400) == 0 || (mod(year_n, 4) == 0 && mod(year_n, 100) ~= 0)
+        days_in_month(2) = 29;
+      end
+      if day_n > days_in_month(month_n)
+        error('toml:InvalidDay', 'Day out of range for the given month.');
+      end
+      
       if startsWith(str, 'T') || startsWith(str, 't') || ...
          (strncmp(str, ' ', 1) && numel(str) > 1 && isstrprop(str(2), 'digit'))
         [time_str, str] = consume_time(str(2:end));
@@ -121,8 +133,14 @@ function [val, str] = consume_value(str)
         elseif startsWith(str, '+') || startsWith(str, '-')
           sign = str(1);
           [hour, str] = consume_integer(str(2:end), 10);
+          if numel(hour) ~= 2 || hour(1) > '2' || (hour(1) == '2' && hour(2) > '3')
+            error('toml:InvalidOffsetHour', 'Invalid hour in timezone offset.');
+          end
           str = expect(str, ':');
           [minute, str] = consume_integer(str, 10);
+          if numel(minute) ~= 2 || minute(1) > '5'
+            error('toml:InvalidOffsetMinute', 'Invalid minute in timezone offset.');
+          end
           val = [val sign hour ':' minute];
         end
       end
