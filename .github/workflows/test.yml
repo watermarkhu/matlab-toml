@@ -5,6 +5,7 @@ on: [push]
 jobs:
   test:
     runs-on: ubuntu-latest
+    name: matlab
     env:
       MATLAB_CMD: /home/runner/work/_actions/matlab-actions/run-tests/v3/dist/bin/glnxa64/run-matlab-command
     steps:
@@ -40,3 +41,38 @@ jobs:
           -skip="valid/multibyte"
           -parallel=1
           -timeout=10s
+
+  test-octave:
+    runs-on: ubuntu-latest
+    name: octave
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install Octave
+        run: sudo apt-get update && sudo apt-get install -y octave
+      - uses: actions/setup-go@v6
+      - name: Install toml-test v2.1.0
+        run: go install github.com/toml-lang/toml-test/v2/cmd/toml-test@v2.1.0
+      - name: Run toml-test with Octave (containers.Map)
+        run: >
+          toml-test test
+          -toml=1.1
+          -decoder="./test/ci_octave.bash"
+          -skip="valid/key/quoted-unicode"
+          -skip="valid/multibyte"
+          -skip="valid/key/dotted-empty"
+          -skip="valid/table/empty-name"
+          -parallel=1
+          -timeout=30s
+      - name: Run toml-test with Octave (UseDictionary)
+        env:
+          TOML_USE_DICT: "1"
+        run: >
+          toml-test test
+          -toml=1.1
+          -decoder="./test/ci_octave.bash"
+          -skip="valid/key/quoted-unicode"
+          -skip="valid/multibyte"
+          -skip="valid/key/dotted-empty"
+          -skip="valid/table/empty-name"
+          -parallel=1
+          -timeout=30s

@@ -46,6 +46,9 @@ function obj_out = decode(toml_str, varargin)
         location_stack{end+1} = length(existing_val) + 1;
         obj_out = set_nested_field(obj_out, location_stack, make_map(use_dict), use_dict);
       catch e
+        if strcmp(e.identifier, 'toml:NameCollision')
+          rethrow(e);
+        end
         array_locations{end+1} = location_stack;
         location_stack{end+1} = 1;
         obj_out = set_nested_field(obj_out, location_stack, make_map(use_dict), use_dict);
