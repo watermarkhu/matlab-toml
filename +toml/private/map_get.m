@@ -7,7 +7,7 @@
 
 function val = map_get(m, key)
   if isa(m, 'dictionary')
-    val = m(string(key));
+    val = m(key);
     if iscell(val)
       val = val{1};
     end

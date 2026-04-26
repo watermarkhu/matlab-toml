@@ -8,7 +8,7 @@ function m = make_map(use_dict)
     use_dict = false;
   end
   if use_dict
-    m = dictionary(string.empty, {});
+    m = dictionary();
   else
     m = containers.Map();
   end

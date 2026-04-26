@@ -2,7 +2,7 @@ function str = jsonify(obj)
 	if isa(obj, 'containers.Map') || isa(obj, 'dictionary')
 		if isa(obj, 'dictionary')
 			key_list = cellstr(keys(obj));
-			get_val = @(k) obj(string(k)); % returns cell-wrapped value
+			get_val = @(k) obj(k); % returns cell-wrapped value
 			unwrap  = @(v) v{1};
 		else
 			key_list = keys(obj);
