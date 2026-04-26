@@ -34,10 +34,15 @@ function obj_out = decode(toml_str, varargin)
       [location_stack, toml_str] = consume_key(toml_str, ']]');
       location_stack = adjust_key_stack(obj_out, location_stack, use_dict);
 
-      check_stack_for_conflict(immutable_locations, location_stack);
+      check_stack_for_conflict(immutable_locations, location_stack, 1);
       check_stack_for_conflict(implicit_table_locations, location_stack);
+      check_stack_for_conflict(table_locations, location_stack);
       try
         existing_val = get_nested_field(obj_out, location_stack);
+        if ~iscell(existing_val)
+          error('toml:NameCollision', ...
+            'Cannot use [[array]] on a non-array value.');
+        end
         location_stack{end+1} = length(existing_val) + 1;
         obj_out = set_nested_field(obj_out, location_stack, make_map(use_dict), use_dict);
       catch e
