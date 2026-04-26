@@ -24,7 +24,10 @@ function obj = set_nested_field(obj, indx, val, use_dict)
             if ~is_map(val)
               error('toml:RedefinedTable', ...
                     'Tables cannot be redefined.')
-            elseif existing.Count == 0
+            elseif val.Count == 0
+              % val is an empty placeholder (e.g. explicit [super-table] header
+              % written after a sub-table already created the implicit map).
+              % Keep the existing map intact; nothing to merge.
               return
             end
           case 'cell'

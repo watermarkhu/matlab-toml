@@ -706,7 +706,7 @@ classdef TestTomlDecode < matlab.unittest.TestCase
         testCase.assumeTrue(false, 'dictionary type not available on this MATLAB version.');
       end
       result = toml.decode(validInput{1}, 'UseDictionary', true);
-      expected = TestTomlDecode.to_dictionary(validInput{2});
+      expected = toml.testing.TestTomlDecode.to_dictionary(validInput{2});
       testCase.verifyEqual(result, expected, validInput{3});
     end
 
@@ -746,10 +746,10 @@ classdef TestTomlDecode < matlab.unittest.TestCase
         d = dictionary(string.empty, {});
         k = keys(val);
         for ii = 1:numel(k)
-          d(string(k{ii})) = {TestTomlDecode.to_dictionary(val(k{ii}))};
+          d(string(k{ii})) = {toml.testing.TestTomlDecode.to_dictionary(val(k{ii}))};
         end
       elseif iscell(val)
-        d = cellfun(@TestTomlDecode.to_dictionary, val, 'UniformOutput', false);
+        d = cellfun(@toml.testing.TestTomlDecode.to_dictionary, val, 'UniformOutput', false);
       else
         d = val;
       end
