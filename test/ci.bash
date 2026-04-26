@@ -37,6 +37,7 @@ is_server_running || start_server
 
 # Read TOML from stdin; clear any stale signals from previous test
 cat > "$TOML_IN"
+echo -n "${TOML_USE_DICT:-0}" > "${TOML_IN}.opts"
 rm -f "$TOML_DONE" "$TOML_ERROR"
 
 # Signal server to process

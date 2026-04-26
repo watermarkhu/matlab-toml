@@ -1,7 +1,16 @@
 function str = jsonify(obj)
-	if isa(obj, 'containers.Map')
-		print_key_value = @(k) ['"' escape_str(k) '":' toml.testing.jsonify(obj(k))];
-		keys_and_values = cellfun(print_key_value, keys(obj), 'uniformoutput', false);
+	if isa(obj, 'containers.Map') || isa(obj, 'dictionary')
+		if isa(obj, 'dictionary')
+			key_list = cellstr(keys(obj));
+			get_val = @(k) toml.testing.dict_get_val(obj, k); % returns cell-wrapped value
+			unwrap  = @(v) v{1};
+		else
+			key_list = keys(obj);
+			get_val  = @(k) obj(k);
+			unwrap   = @(v) v;
+		end
+		print_key_value = @(k) ['"' escape_str(k) '":' toml.testing.jsonify(unwrap(get_val(k)))];
+		keys_and_values = cellfun(print_key_value, key_list, 'uniformoutput', false);
 		str = ['{', strjoin(keys_and_values, ','), '}'];
 
 	elseif isstruct(obj)
@@ -66,50 +75,95 @@ function str = jsonify(obj)
 end
 
 function out = escape_str(str)
+	% Produce a pure-ASCII JSON string body (no surrounding quotes).
+	% All non-ASCII codepoints are emitted as \uXXXX (BMP) or
+	% \uXXXX\uXXXX surrogate pairs (supplementary plane), so the result
+	% is safe regardless of the caller's locale / fprintf encoding.
+	%
+	% Handles two char encodings transparently:
+	%   MATLAB: chars are UTF-16 code units; surrogates appear as pairs.
+	%   Octave:  chars are raw UTF-8 bytes; multi-byte sequences must be
+	%            decoded to codepoints before escaping.
 	out = '';
 	idx = 1;
+	is_octave = exist('OCTAVE_VERSION', 'builtin') > 0;
 	while idx <= numel(str)
 		c = double(str(idx));
+
+		% ---- mandatory JSON escapes ----
 		if c == double('"')
 			out = [out '\"'];
+			idx = idx + 1;
+			continue
 		elseif c == double('\')
 			out = [out '\\'];
+			idx = idx + 1;
+			continue
 		elseif c < 0x20
 			out = [out '\u' sprintf('%04X', c)];
-		elseif c >= 0xD800 && c <= 0xDBFF
-			% MATLAB UTF-16 high surrogate — consume paired low surrogate
-			if idx + 1 <= numel(str)
-				low = double(str(idx + 1));
-				out = [out '\u' sprintf('%04X', c) '\u' sprintf('%04X', low)];
+			idx = idx + 1;
+			continue
+		end
+
+		% ---- pure ASCII printable: pass through ----
+		if c <= 0x7E
+			out = [out str(idx)];
+			idx = idx + 1;
+			continue
+		end
+
+		% ---- non-ASCII: decode to codepoint, then emit \uXXXX ----
+		if is_octave
+			% Octave stores raw UTF-8 bytes in char arrays.
+			if c < 0xC0
+				% Unexpected continuation byte – pass raw (shouldn't happen in
+				% well-formed UTF-8, but be defensive).
+				cp = uint32(c);
 				idx = idx + 1;
-			else
-				out = [out '\u' sprintf('%04X', c)];
-			end
-		elseif c >= 0xF0 && c <= 0xF4
-			% Octave raw UTF-8 4-byte sequence for supplementary-plane codepoint
-			if idx + 3 <= numel(str)
-				b2 = double(str(idx+1)); b3 = double(str(idx+2)); b4 = double(str(idx+3));
-				cp = bitand(uint32(c), uint32(0x07)) * 262144 + ...
-				     bitand(uint32(b2), uint32(0x3F)) * 4096 + ...
-				     bitand(uint32(b3), uint32(0x3F)) * 64 + ...
-				     bitand(uint32(b4), uint32(0x3F));
-				u  = cp - uint32(0x10000);
-				w1 = bitor(uint32(0xD800), bitshift(u, -10));
-				w2 = bitor(uint32(0xDC00), bitand(u, uint32(0x3FF)));
-				out = [out '\u' sprintf('%04X', w1) '\u' sprintf('%04X', w2)];
+			elseif c < 0xE0
+				% 2-byte sequence: 110xxxxx 10xxxxxx
+				b2 = double(str(idx+1));
+				cp = uint32(bitand(c, 0x1F)) * 64 + uint32(bitand(b2, 0x3F));
+				idx = idx + 2;
+			elseif c < 0xF0
+				% 3-byte sequence: 1110xxxx 10xxxxxx 10xxxxxx
+				b2 = double(str(idx+1)); b3 = double(str(idx+2));
+				cp = uint32(bitand(c, 0x0F)) * 4096 + ...
+				     uint32(bitand(b2, 0x3F)) * 64 + ...
+				     uint32(bitand(b3, 0x3F));
 				idx = idx + 3;
 			else
-				out = [out str(idx)];
+				% 4-byte sequence: 11110xxx 10xxxxxx 10xxxxxx 10xxxxxx
+				b2 = double(str(idx+1)); b3 = double(str(idx+2)); b4 = double(str(idx+3));
+				cp = uint32(bitand(c, 0x07)) * 262144 + ...
+				     uint32(bitand(b2, 0x3F)) * 4096 + ...
+				     uint32(bitand(b3, 0x3F)) * 64 + ...
+				     uint32(bitand(b4, 0x3F));
+				idx = idx + 4;
 			end
-		elseif c > 0xFFFF
-			% Large codepoint stored as single value (unusual)
-			u = uint32(c) - uint32(0x10000);
-			w1 = bitor(uint32(0xD800), bitand(u, uint32(0b11111111110000000000)));
-			w2 = bitor(uint32(0xDC00), bitand(u, uint32(0b00000000001111111111)));
-			out = [out '\u' sprintf('%04X', w1) '\u' sprintf('%04X', w2)];
 		else
-			out = [out str(idx)];
+			% MATLAB stores UTF-16 code units.
+			if c >= 0xD800 && c <= 0xDBFF && idx + 1 <= numel(str)
+				% High surrogate followed by low surrogate → decode to codepoint.
+				low = double(str(idx + 1));
+				cp  = uint32(0x10000) + (uint32(c) - uint32(0xD800)) * 1024 + ...
+				      (uint32(low) - uint32(0xDC00));
+				idx = idx + 2;
+			else
+				cp  = uint32(c);
+				idx = idx + 1;
+			end
 		end
-		idx = idx + 1;
+
+		% ---- emit codepoint as \uXXXX or surrogate pair ----
+		if cp <= 0xFFFF
+			out = [out '\u' sprintf('%04X', cp)];
+		else
+			% Supplementary plane → surrogate pair escape
+			u  = cp - uint32(0x10000);
+			w1 = bitor(uint32(0xD800), bitshift(u, -10));
+			w2 = bitor(uint32(0xDC00), bitand(u, uint32(0x3FF)));
+			out = [out '\u' sprintf('%04X', w1) '\u' sprintf('%04X', w2)];
+		end
 	end
 end

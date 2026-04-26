@@ -3,16 +3,19 @@
 %   READ('file.toml') loads the contents of `file.toml` and parses
 %   that data into a MATLAB Map.
 %
+%   READ('file.toml', 'UseDictionary', true) uses the dictionary type
+%   (requires MATLAB R2022b+) instead of containers.Map.
+%
 %   See also FILEREAD, TOML.DECODE
 
-function toml_data = read(filename)
+function toml_data = read(filename, varargin)
   if is_octave()
     raw_text = read_utf8_octave(filename);
   else
     raw_text = read_utf8_matlab(filename);
   end
 
-  toml_data = toml.decode(raw_text);
+  toml_data = toml.decode(raw_text, varargin{:});
 end
 
 function raw_text = read_utf8_matlab(filename)
