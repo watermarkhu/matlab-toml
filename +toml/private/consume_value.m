@@ -270,18 +270,22 @@ function [val, str] = consume_time(str, hour)
     error('toml:InvalidMinute', 'Invalid minute in time object.');
   end
 
-  str = expect(str, ':');
-  [second, str] = consume_integer(str, 10);
-  
-  if numel(second) ~= 2 || second(1) > '6' || (second(1) == '6' && second(2) > '0')
-    error('toml:InvalidSecond', 'Invalid second in time object.');
-  end
+  if startsWith(str, ':') && numel(str) > 1 && isstrprop(str(2), 'digit')
+    str = str(2:end);
+    [second, str] = consume_integer(str, 10);
 
-  val = [hour ':' minute ':' second];
-  
-  if startsWith(str, '.')
-    [sub_second, str] = consume_integer(str(2:end), 10);
-    val = [val '.' sub_second(1:min(6, numel(sub_second)))];
+    if numel(second) ~= 2 || second(1) > '6' || (second(1) == '6' && second(2) > '0')
+      error('toml:InvalidSecond', 'Invalid second in time object.');
+    end
+
+    val = [hour ':' minute ':' second];
+
+    if startsWith(str, '.')
+      [sub_second, str] = consume_integer(str(2:end), 10);
+      val = [val '.' sub_second(1:min(6, numel(sub_second)))];
+    end
+  else
+    val = [hour ':' minute ':00'];
   end
 end
 
