@@ -41,14 +41,15 @@ function [val, str] = consume_value(str)
     str = str(2:end);
     val = containers.Map();
     inline_immutable = {};
-    first = true;
-    while ~isempty(str)
-      str = trimstart(str);
+    while true
+      str = trimstart(str, true);
+      str = consume_comment(str);
+      % consume_comment may leave us at another # or whitespace (consecutive comments)
+      if isempty(str) || str(1) == '#' || isspace(str(1))
+        continue
+      end
       if startsWith(str, '}')
         break
-      end
-      if ~first
-        str = expect(str, ',');
       end
       [key_seq, str] = consume_key(str, '=');
       [item, str] = consume_value(str);
@@ -65,7 +66,21 @@ function [val, str] = consume_value(str)
       % Mark this full key path as immutable (leaf only)
       inline_immutable{end+1} = key_seq;
       val = set_nested_field(val, key_seq, item);
-      first = false;
+      while true
+        str = trimstart(str, true);
+        str = consume_comment(str);
+        if startsWith(str, ',')
+          str = str(2:end);  % consume optional comma (trailing comma allowed in TOML 1.1)
+          break
+        elseif startsWith(str, '}')
+          break
+        elseif isempty(str) || str(1) == '#' || isspace(str(1))
+          continue  % consecutive comments/whitespace
+        else
+          error('toml:MissingComma', ...
+            'Expected comma or closing brace in inline table.');
+        end
+      end
     end
     str = expect(str, '}');
 
