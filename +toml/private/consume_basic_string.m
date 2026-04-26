@@ -63,7 +63,10 @@ function [content, str] = terminate_string(str, is_multiline)
             elseif code_point <= uint32(0xFFFF)
               pieces{end+1} = char(code_point);
             else
-              pieces{end+1} = char([bitshift(code_point, -16), bitand(uint32(0xFFFF), code_point)]);
+              u  = code_point - uint32(0x10000);
+              w1 = bitor(uint32(0xD800), bitshift(u, -10));
+              w2 = bitor(uint32(0xDC00), bitand(u, uint32(0x3FF)));
+              pieces{end+1} = char([w1, w2]);
             end
           otherwise
             error('toml:ReservedEscapeSequence', ...

@@ -645,4 +645,17 @@ classdef TestTomlDecode < matlab.unittest.TestCase
 
   end
 
+  methods (Test)
+
+    function testEscapedSupplementaryPlaneRoundtrip(testCase)
+      % \U00010AF1 is a supplementary-plane codepoint (U+10AF1).
+      % After decode, jsonify should emit \uD802\uDEF1 (surrogate pair escapes).
+      result = toml.decode('key = "\U00010AF1"');
+      json = toml.testing.jsonify(result);
+      testCase.verifyTrue(~isempty(strfind(json, '\uD802\uDEF1')), ...
+        'jsonify should emit surrogate pair \\uD802\\uDEF1 for U+10AF1.');
+    end
+
+  end
+
 end
