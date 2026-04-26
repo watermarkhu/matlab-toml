@@ -700,7 +700,9 @@ classdef TestTomlDecode < matlab.unittest.TestCase
     function testValidInputsDict(testCase, validInput)
       % Test that UseDictionary=true produces the same result as containers.Map
       % when the dictionary type is available (R2022b+).
-      if ~(exist('dictionary', 'builtin') == 5 || exist('dictionary') == 5)
+      try
+        dictionary(string.empty, {});
+      catch
         testCase.assumeTrue(false, 'dictionary type not available on this MATLAB version.');
       end
       result = toml.decode(validInput{1}, 'UseDictionary', true);
