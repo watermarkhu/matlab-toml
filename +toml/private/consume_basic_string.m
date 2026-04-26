@@ -49,6 +49,16 @@ function [content, str] = terminate_string(str, is_multiline)
             pieces{end+1} = c;
           case { 'b', 't', 'r', 'f', 'n' }
             pieces{end+1} = sprintf(['\' c]);
+          case 'e'
+            pieces{end+1} = char(0x1B);
+          case 'x'
+            [code_point, str] = get_hex_digits(str, 2);
+            code_point = uint32(hex2dec(code_point));
+            if is_octave()
+              pieces{end+1} = utf8ify(code_point);
+            else
+              pieces{end+1} = char(code_point);
+            end
           case { 'u', 'U' }
             num_digits = 4;
             if c == 'U'
