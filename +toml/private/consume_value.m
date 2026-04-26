@@ -45,8 +45,11 @@ function [val, str] = consume_value(str)
       str = trimstart(str, true);
       str = consume_comment(str);
       % consume_comment may leave us at another # or whitespace (consecutive comments)
-      if isempty(str) || str(1) == '#' || isspace(str(1))
+      if ~isempty(str) && (str(1) == '#' || isspace(str(1)))
         continue
+      end
+      if isempty(str)
+        error('toml:EndOfInput', 'Did not expect input to end inside inline table.');
       end
       if startsWith(str, '}')
         break
@@ -74,8 +77,10 @@ function [val, str] = consume_value(str)
           break
         elseif startsWith(str, '}')
           break
-        elseif isempty(str) || str(1) == '#' || isspace(str(1))
+        elseif ~isempty(str) && (str(1) == '#' || isspace(str(1)))
           continue  % consecutive comments/whitespace
+        elseif isempty(str)
+          error('toml:EndOfInput', 'Did not expect input to end inside inline table.');
         else
           error('toml:MissingComma', ...
             'Expected comma or closing brace in inline table.');
