@@ -52,8 +52,12 @@ function str = jsonify(obj)
 			str = sprintf('{"type":"integer","value":"%d"}', obj);
 		elseif isnan(obj)
 			str = '{"type":"float","value":"nan"}';
+		elseif isinf(obj) && obj > 0
+			str = '{"type":"float","value":"inf"}';
+		elseif isinf(obj) && obj < 0
+			str = '{"type":"float","value":"-inf"}';
 		else
-			str = sprintf('{"type":"float","value":"%0.15f"}', obj);
+			str = sprintf('{"type":"float","value":"%g"}', obj);
 		end
 
 	else
