@@ -27,7 +27,6 @@ jobs:
           toml-test test
           -toml=1.1
           -decoder="./test/ci.bash ${{ env.MATLAB_CMD }}"
-          -skip="valid/key/quoted-unicode"
           -parallel=1
           -timeout=10s
       - name: Run toml-test (dictionary, all tests)
@@ -55,7 +54,6 @@ jobs:
           toml-test test
           -toml=1.1
           -decoder="./test/ci_octave.bash"
-          -skip="valid/key/quoted-unicode"
           -skip="valid/key/dotted-empty"
           -skip="valid/table/empty-name"
           -parallel=1
