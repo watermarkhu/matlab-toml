@@ -22,14 +22,14 @@ jobs:
         run: go install github.com/toml-lang/toml-test/v2/cmd/toml-test@v2.1.0
       - name: Warm up MATLAB TOML server
         run: echo 'key = "value"' | ./test/ci.bash "${{ env.MATLAB_CMD }}"
-      - name: Run toml-test (containers.Map, skip unicode)
+      - name: Run toml-test (containers.Map)
         run: >
           toml-test test
           -toml=1.1
           -decoder="./test/ci.bash ${{ env.MATLAB_CMD }}"
           -parallel=1
           -timeout=10s
-      - name: Run toml-test (dictionary, all tests)
+      - name: Run toml-test (dictionary)
         env:
           TOML_USE_DICT: "1"
         run: >
