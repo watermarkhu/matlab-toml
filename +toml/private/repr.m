@@ -57,7 +57,7 @@ function str = repr(obj, parent)
 
     % cell arrays
     case 'cell'
-      if all(cellfun(@isstruct, obj)) || all(cellfun(@(el) isa(el, 'containers.Map'), obj))
+      if all(cellfun(@isstruct, obj)) || all(cellfun(@is_map, obj))
         fmtter = @(a) sprintf('[[%s]]%s%s', parent, newline, repr(a));
         cel_str = cellfun(fmtter, obj, 'uniformoutput', false);
         str = strjoin(cel_str, newline);
@@ -66,26 +66,27 @@ function str = repr(obj, parent)
         str = ['[', strjoin(cel_mod, ', '), ']'];
       end
 
-    % maps
-    case 'containers.Map'
-      fn = keys(obj);
-      vals = values(obj);
+    % maps (containers.Map or dictionary)
+    case {'containers.Map', 'dictionary'}
+      fn = map_keys(obj);
       str = '';
-      for indx = 1:numel(vals)
-        new_parent = fn{indx};
-        current_item_repr = repr(vals{indx}, new_parent);
-        if isa(vals{indx}, 'containers.Map')
+      for indx = 1:numel(fn)
+        key = fn{indx};
+        val = map_get(obj, key);
+        new_parent = key;
+        current_item_repr = repr(val, new_parent);
+        if is_map(val)
           if nargin > 1
             fmt_str = ['[', parent, '.%s]%s%s'];
-            item = sprintf(fmt_str, fn{indx}, newline, current_item_repr);
-            new_parent = [parent, '.', fn{indx}];
+            item = sprintf(fmt_str, key, newline, current_item_repr);
+            new_parent = [parent, '.', key];
           else
-            item = sprintf("[%s]%s%s", fn{indx}, newline, current_item_repr);
+            item = sprintf("[%s]%s%s", key, newline, current_item_repr);
           end
-        elseif iscell(vals{indx}) && all(cellfun(@(el) isa(el, 'containers.Map'), vals{indx}))
+        elseif iscell(val) && all(cellfun(@is_map, val))
           item = current_item_repr;
         else
-          item = sprintf("%s = %s", fn{indx}, current_item_repr);
+          item = sprintf("%s = %s", key, current_item_repr);
         end
         str = sprintf("%s%s%s", str, item, newline);
       end
