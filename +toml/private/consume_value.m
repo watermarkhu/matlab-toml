@@ -1,4 +1,7 @@
-function [val, str] = consume_value(str)
+function [val, str] = consume_value(str, use_dict)
+  if nargin < 2
+    use_dict = false;
+  end
   str = trimstart(str);
   
   if isempty(str)
@@ -21,7 +24,7 @@ function [val, str] = consume_value(str)
         error('toml:LeadingComma', ...
           'Comma found before in array without an element before it.');
       elseif ~startsWith(str, '#')
-        [item, str] = consume_value(str);
+        [item, str] = consume_value(str, use_dict);
         val{end+1} = item;
         expecting_comma = true;
       end
@@ -39,20 +42,53 @@ function [val, str] = consume_value(str)
     
   elseif startsWith(str, '{')
     str = str(2:end);
-    val = containers.Map();
-    first = true;
-    while ~isempty(str)
-      str = trimstart(str);
+    val = make_map(use_dict);
+    inline_immutable = {};
+    while true
+      str = trimstart(str, true);
+      str = consume_comment(str);
+      % consume_comment may leave us at another # or whitespace (consecutive comments)
+      if ~isempty(str) && (str(1) == '#' || str(1) == ' ' || str(1) == char(9) || str(1) == newline || str(1) == char(0xD))
+        continue
+      end
+      if isempty(str)
+        error('toml:EndOfInput', 'Did not expect input to end inside inline table.');
+      end
       if startsWith(str, '}')
         break
       end
-      if ~first
-        str = expect(str, ',');
-      end
       [key_seq, str] = consume_key(str, '=');
-      [item, str] = consume_value(str);
-      val = set_nested_field(val, key_seq, item);
-      first = false;
+      [item, str] = consume_value(str, use_dict);
+      % Check: reject if new key_seq exactly matches or is an extension of an existing key,
+      % or if an existing key is an extension of the new key_seq.
+      for ii = 1:numel(inline_immutable)
+        existing = inline_immutable{ii};
+        n = min(numel(existing), numel(key_seq));
+        if isequal(existing(1:n), key_seq(1:n))
+          error('toml:InlineTableImmutable', ...
+            'Inline tables are immutable; key already defined.');
+        end
+      end
+      % Mark this full key path as immutable (leaf only)
+      inline_immutable{end+1} = key_seq;
+      val = set_nested_field(val, key_seq, item, use_dict);
+      while true
+        str = trimstart(str, true);
+        str = consume_comment(str);
+        if startsWith(str, ',')
+          str = str(2:end);  % consume optional comma (trailing comma allowed in TOML 1.1)
+          break
+        elseif startsWith(str, '}')
+          break
+        elseif ~isempty(str) && (str(1) == '#' || str(1) == ' ' || str(1) == char(9) || str(1) == newline || str(1) == char(0xD))
+          continue  % consecutive comments/whitespace
+        elseif isempty(str)
+          error('toml:EndOfInput', 'Did not expect input to end inside inline table.');
+        else
+          error('toml:MissingComma', ...
+            'Expected comma or closing brace in inline table.');
+        end
+      end
     end
     str = expect(str, '}');
 
@@ -110,6 +146,18 @@ function [val, str] = consume_value(str)
 
       val = [digits '-' month '-' day];
       
+      % Validate day against month (including leap year for February)
+      year_n  = str2double(digits);
+      month_n = str2double(month);
+      day_n   = str2double(day);
+      days_in_month = [31 28 31 30 31 30 31 31 30 31 30 31];
+      if mod(year_n, 400) == 0 || (mod(year_n, 4) == 0 && mod(year_n, 100) ~= 0)
+        days_in_month(2) = 29;
+      end
+      if day_n > days_in_month(month_n)
+        error('toml:InvalidDay', 'Day out of range for the given month.');
+      end
+      
       if startsWith(str, 'T') || startsWith(str, 't') || ...
          (strncmp(str, ' ', 1) && numel(str) > 1 && isstrprop(str(2), 'digit'))
         [time_str, str] = consume_time(str(2:end));
@@ -121,8 +169,14 @@ function [val, str] = consume_value(str)
         elseif startsWith(str, '+') || startsWith(str, '-')
           sign = str(1);
           [hour, str] = consume_integer(str(2:end), 10);
+          if numel(hour) ~= 2 || hour(1) > '2' || (hour(1) == '2' && hour(2) > '3')
+            error('toml:InvalidOffsetHour', 'Invalid hour in timezone offset.');
+          end
           str = expect(str, ':');
           [minute, str] = consume_integer(str, 10);
+          if numel(minute) ~= 2 || minute(1) > '5'
+            error('toml:InvalidOffsetMinute', 'Invalid minute in timezone offset.');
+          end
           val = [val sign hour ':' minute];
         end
       end
@@ -224,18 +278,22 @@ function [val, str] = consume_time(str, hour)
     error('toml:InvalidMinute', 'Invalid minute in time object.');
   end
 
-  str = expect(str, ':');
-  [second, str] = consume_integer(str, 10);
-  
-  if numel(second) ~= 2 || second(1) > '6' || (second(1) == '6' && second(2) > '0')
-    error('toml:InvalidSecond', 'Invalid second in time object.');
-  end
+  if startsWith(str, ':') && numel(str) > 1 && isstrprop(str(2), 'digit')
+    str = str(2:end);
+    [second, str] = consume_integer(str, 10);
 
-  val = [hour ':' minute ':' second];
-  
-  if startsWith(str, '.')
-    [sub_second, str] = consume_integer(str(2:end), 10);
-    val = [val '.' sub_second(1:min(6, numel(sub_second)))];
+    if numel(second) ~= 2 || second(1) > '6' || (second(1) == '6' && second(2) > '0')
+      error('toml:InvalidSecond', 'Invalid second in time object.');
+    end
+
+    val = [hour ':' minute ':' second];
+
+    if startsWith(str, '.')
+      [sub_second, str] = consume_integer(str(2:end), 10);
+      val = [val '.' sub_second(1:min(6, numel(sub_second)))];
+    end
+  else
+    val = [hour ':' minute ':00'];
   end
 end
 
