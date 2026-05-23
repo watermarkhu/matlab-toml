@@ -37,6 +37,60 @@ classdef TestTomlRead < matlab.unittest.TestCase
                            'Did not parse example TOML file correctly.')
     end
 
+    function testReadCommentWithSupplementaryPlaneChars(testCase)
+      % A comment containing supplementary-plane Unicode chars (U+10000, U+10FFFF)
+      % should parse to an empty map without crashing.
+      % Bytes: # <space> U+10000 (F0 90 80 80) <space> U+10FFFF (F4 8F BF BF) <LF>
+      bytes = uint8([0x23, 0x20, 0xF0, 0x90, 0x80, 0x80, 0x20, 0xF4, 0x8F, 0xBF, 0xBF, 0x0A]);
+      tmp = [tempname() '.toml'];
+      fid = fopen(tmp, 'wb');
+      fwrite(fid, bytes, 'uint8');
+      fclose(fid);
+      cleanup = onCleanup(@() delete(tmp));
+
+      result = toml.read(tmp);
+      testCase.verifyEqual(result.Count, uint64(0), ...
+        'Comment with supplementary-plane chars should yield empty map.');
+    end
+
+    function testReadStringWithSupplementaryPlaneChars(testCase)
+      % A string value containing a 4-byte UTF-8 sequence (U+10AF1 = F0 90 AB B1)
+      % should be read without error. Key is ASCII.
+      % TOML: val = "x<U+10AF1>y"
+      bytes = uint8([0x76, 0x61, 0x6C, 0x20, 0x3D, 0x20, 0x22, ...
+                     0x78, 0xF0, 0x90, 0xAB, 0xB1, 0x79, ...
+                     0x22, 0x0A]);
+      tmp = [tempname() '.toml'];
+      fid = fopen(tmp, 'wb');
+      fwrite(fid, bytes, 'uint8');
+      fclose(fid);
+      cleanup = onCleanup(@() delete(tmp));
+
+      % Should not throw
+      result = toml.read(tmp);
+      testCase.verifyTrue(isKey(result, 'val'), ...
+        'Key "val" should exist in parsed result.');
+      val = result('val');
+      testCase.verifyTrue(numel(val) >= 3, ...
+        'String with supplementary-plane char should have at least 3 chars.');
+      testCase.verifyEqual(val(1), 'x', 'First char should be x.');
+      testCase.verifyEqual(val(end), 'y', 'Last char should be y.');
+    end
+
+    function testReadRejectsCesu8Surrogate(testCase)
+      % A file containing a CESU-8 encoded surrogate (0xED 0xA0 0x80 = U+D800)
+      % in a comment should be rejected as invalid UTF-8.
+      bytes = uint8([0x23, 0x20, 0xED, 0xA0, 0x80, 0x0A]);
+      tmp = [tempname() '.toml'];
+      fid = fopen(tmp, 'wb');
+      fwrite(fid, bytes, 'uint8');
+      fclose(fid);
+      cleanup = onCleanup(@() delete(tmp));
+
+      testCase.verifyError(@() toml.read(tmp), 'toml:InvalidUTF8', ...
+        'Should reject CESU-8 encoded surrogate codepoint.');
+    end
+
   end
 
 end

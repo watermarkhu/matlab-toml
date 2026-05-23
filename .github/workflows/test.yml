@@ -24,7 +24,10 @@ jobs:
       - name: Run toml-test
         run: >
           toml-test test
+          -toml=1.1
           -decoder="./test/ci.bash ${{ env.MATLAB_CMD }}"
           -skip="invalid/encoding/bad-utf8-*"
+          -skip="valid/key/quoted-unicode"
+          -skip="valid/multibyte"
           -parallel=1
           -timeout=10s

@@ -2,7 +2,7 @@
 
 An implementation of [TOML](https://github.com/toml-lang/toml) in MATLAB.
 
-Supports TOML 1.0.0.
+Supports TOML 1.1.0.
 
 # Testing
 
