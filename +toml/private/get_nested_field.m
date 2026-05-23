@@ -9,15 +9,14 @@
 
 function value = get_nested_field(obj, indx)
   % check for existence
-  switch class(obj)
-    case 'cell'
-      if numel(obj) < indx{1}
-        error('toml:NoSuchIndex', 'This index does not exist.')
-      end
-    case 'containers.Map'
-      if ~isKey(obj, indx{1})
-        error('toml:NoSuchIndex', 'This index does not exist.')
-      end
+  if iscell(obj)
+    if numel(obj) < indx{1}
+      error('toml:NoSuchIndex', 'This index does not exist.')
+    end
+  elseif is_map(obj)
+    if ~map_iskey(obj, indx{1})
+      error('toml:NoSuchIndex', 'This index does not exist.')
+    end
   end
 
   % retrieve it
@@ -29,10 +28,9 @@ function value = get_nested_field(obj, indx)
 end
 
 function val = get_item(obj, indx2)
-  switch class(obj)
-    case 'cell'
-      val = obj{indx2};
-    case 'containers.Map'
-      val = obj(indx2);
+  if iscell(obj)
+    val = obj{indx2};
+  elseif is_map(obj)
+    val = map_get(obj, indx2);
   end
 end
